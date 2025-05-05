@@ -46,6 +46,22 @@ class AbstractGraph(ABC):
         """This func must yield the parents. according to their depth."""
         pass
 
+    @abstractmethod
+    def get_node(self, id: int) -> Optional[GraphNode]:
+        """Fetch a node by its ID to inspect dependencies."""
+        pass
+
+    @abstractmethod
+    def get_roots(self) -> list[GraphNode]:
+        """Return all root nodes (no parents)."""
+        pass
+
+    @abstractmethod
+    def has_node(self, id: int) -> bool:
+        """Check if a node exists in the graph."""
+        pass
+    
+
 class AbstractDetector(ABC)
 
     @abstractmethod
