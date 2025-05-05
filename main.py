@@ -1,13 +1,22 @@
 import asyncio
 
+from listner import HTTPListener
+
+from dependancy import GraphDetector
+from graph import ServiceGraph
+from notifier import ConsoleNotifier
+from message_queue import AsyncQueue
+
 
 async def main():
-    # define the hook used for notification
-    # dependency graph is also a graph
-    # the thing that takes the dependency graph and supress redundant alerts
-    # using csp for  inter task communicaiton
-    # start the server listen for clients
-    pass
+    notifier = ConsoleNotifier()
+    graph = ServiceGraph()
+    mq = AsyncQueue()
+    detector = GraphDetector(graph, mq, notifier)
+
+    httpserver = HTTPListener(mq)
+
+    await asyncio.gather(detector.start(), httpserver.listen())
 
 
 if __name__ == "__main__":
