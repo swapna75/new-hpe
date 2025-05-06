@@ -2,11 +2,18 @@ from interfaces import AbstractAlertStore
 
 
 class DictStore(AbstractAlertStore):
-    def __init__(self) -> None:
+    def __init__(self, url: str) -> None:
         self.store = {}
+        self.id = url  # for this class this url is used as an identifier.
 
     async def put(self, id, alert):
         self.store[id] = alert
 
     async def get(self, id):
-        return self.store[id]
+        return self.store.get(id, None)
+
+    async def has(self, id):
+        return id in self.store
+
+    async def remove(self, id):
+        self.store.pop(id, None)

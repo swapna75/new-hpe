@@ -3,7 +3,7 @@ import yaml
 
 
 class ServiceGraph(AbstractGraph):
-    def __init__(self, config_file=None) -> None:
+    def __init__(self, config_file="service_dependancy_map.yaml") -> None:
         self.graph = {}  # map that maintains all the nodes.
         # internally the nodes are connected.
         self.loaded_from_config = False
@@ -13,15 +13,17 @@ class ServiceGraph(AbstractGraph):
             self.config_file = config_file
             self.from_config()
 
-    def add(self, node_id: int, parents: set[int], children: set[int]) -> GraphNode:
-        this = GraphNode(node_id)
+    def add(
+        self, node_id: int, service: str, parents: set[int], children: set[int]
+    ) -> GraphNode:
+        this = GraphNode(node_id, service)
         self.graph[node_id] = this
 
         for child_id in children:
             if child_id in self.graph:
                 child = self.graph[child_id]
             else:
-                child = GraphNode(child_id)
+                child = GraphNode(child_id, service)
             child.parents.add(this)
             this.children.add(child)
 
@@ -29,7 +31,7 @@ class ServiceGraph(AbstractGraph):
             if parent_id in self.graph:
                 parent = self.graph[parent_id]
             else:
-                parent = GraphNode(parent_id)
+                parent = GraphNode(parent_id, service)
             parent.children.add(this)
             this.parents.add(parent)
 
@@ -71,16 +73,19 @@ class ServiceGraph(AbstractGraph):
         if not self.loaded_from_config:
             raise InvalidOperationError("Must not load from the config file")
 
-        with open("graph.yaml", "r") as f:
+        with open(self.config_file, "r") as f:
             config = yaml.safe_load(f)
 
-        self.graph.update({n["id"]: GraphNode(n["id"]) for n in config["nodes"]})
+        self.graph.update(
+            {n["id"]: GraphNode(n["id"], n["service"]) for n in config["nodes"]}
+        )
         for node in config["nodes"]:
             id = node["id"]
+            service = node["service"]
             parents = node.get("parents", list())
             children = node.get("children", list())
 
-            self.add(id, parents, children)
+            self.add(id, service, parents, children)
 
     def get_node(self, id: int) -> GraphNode:
         if not self.has_node(id):

@@ -1,3 +1,6 @@
+from enum import Enum
+
+
 class GraphNode:
     srevice_to_id = {}
 
@@ -22,16 +25,28 @@ class GraphNode:
 
     @classmethod
     def get_id(cls, service):
-        return cls.srevice_to_id.get(service, None)
+        return hash(cls.srevice_to_id.get(service, None))
+
+
+class ALERT_STATE(Enum):
+    FIRING = 1
+    RESOLVED = 2
+
+
+status = {"resolved": ALERT_STATE.RESOLVED, "firing": ALERT_STATE.FIRING}
 
 
 class Alert:
     def __init__(self, alert_json: dict) -> None:
         self.alert = alert_json
         self.service = alert_json["labels"]["job"]
-        self.severity = alert_json["labels"]["critical"]
+        self.severity = alert_json["labels"]["severity"]
         self.startsAt = alert_json["startsAt"]
         self.endsAt = alert_json["endsAt"]
+        self.status = status[alert_json["status"]]
+        self.id = self.__get_id()
+
+        self.parent_count = 0
 
         self.decription = alert_json["annotations"]["description"]
         self.summary = alert_json["annotations"]["summary"]
@@ -39,5 +54,5 @@ class Alert:
     def __str__(self) -> str:
         return f"Alert from service {self.service} started at {self.startsAt} with severity {self.severity}"
 
-    def get_id(self):
+    def __get_id(self):
         return frozenset(self.alert["labels"].items())
