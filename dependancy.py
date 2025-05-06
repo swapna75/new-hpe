@@ -19,7 +19,7 @@ class node:
 
 class GraphDetector(AbstractDetector):
     """This class purely does the operations based on graph traversals
-    but the parameter graph is used for dependency uasage.
+    but the parameter graph is used for dependency usage.
     """
 
     def __init__(
@@ -47,55 +47,45 @@ class GraphDetector(AbstractDetector):
 
     async def process_alert(self, alert: Alert):
         log.info(f"Processing alert {alert.id}")
-        if prev_alert := await self.store.get(alert.id):
-            if (
-                prev_alert.status == ALERT_STATE.FIRING
-                and alert.status == ALERT_STATE.RESOLVED
-            ):
+
+        prev_alert = await self.store.get(alert.id)
+        if prev_alert:
+            if prev_alert.status == ALERT_STATE.FIRING and alert.status == ALERT_STATE.RESOLVED:
                 await self.store.remove(alert.id)
-                if alert.id in self.root_alerts:
-                    self.root_alerts.remove(alert.id)
-                if alert.id in self.alert_paths:
-                    for child_alert in self.alert_paths[alert.id]:
-                        child_alert.parent_count -= 1
-                        if child_alert.parent_count == 0:
-                            self.alert_paths.pop(child_alert.id, None)
+                self.root_alerts.discard(alert.id)
+                self.alert_paths.pop(alert.id, None)
                 return
-        # if not_found then raised first time probably.
+
+        # New or firing alert
         await self.store.put(alert.id, alert)
         self.service_based_alerts[alert.service].append(alert.id)
-        if len(self.service_based_alerts[alert.service]) != 1:
-            other_alert_id = self.service_based_alerts[alert.service][0]
 
-            self.alert_paths[alert.id] = self.alert_paths[other_alert_id]
+        # If other alerts already present for same service, copy their alert path
+        if len(self.service_based_alerts[alert.service]) > 1:
+            first_alert_id = self.service_based_alerts[alert.service][0]
+            self.alert_paths[alert.id] = self.alert_paths[first_alert_id]
             return
 
-        # find parent alerts
+        # Check upstream parents in dependency graph
+        alert.parent_count = 0
+        try:
+            node = self.dep_graph.get_node(GraphNode.get_id(alert.service))
+        except Exception as e:
+            log.warning(f"Could not fetch node for {alert.service}: {e}")
+            return
 
-        for parent in self.dep_graph.get_node(GraphNode.get_id(alert.service)).parents:
-            parent_alerts = self.service_based_alerts[parent.id]
-            if len(parent_alerts) == 0:
-                continue
+        for parent in node.parents:
+            parent_alerts = self.service_based_alerts.get(parent.id, [])
+            for parent_alert_id in parent_alerts:
+                self.alert_paths[parent_alert_id].append(alert.id)
+                alert.parent_count += 1
 
-            for possible_parent in parent_alerts:
-                self.alert_paths[possible_parent.id].append(alert.id)
-                alert.parent_count += 0
+        # Flag as root if no parent alerts
         if alert.parent_count == 0:
-            log.info(f"Added alert {alert.id} to root alert to be notifed")
+            log.info(f"Alert {alert.id} flagged as ROOT cause.")
+            alert.is_root_cause = True 
             self.root_alerts.add(alert.id)
             self.notifier_tasks.append(self.trigger_notify(alert))
-        return
-
-    # async def walkthrough_graph(self, node_id):
-    #     self.alert_paths[node_id] = self.alert_paths.get(node_id, set())
-    #     for parent in self.dep_graph.get_node(node_id).parents:
-    #         if parent in self.alert_paths:
-    #             self.alert_paths[node_id].add(parent)
-    #     if len(self.alert_paths[node_id]):
-    #         self.root_alerts.add(node_id)
-    #         return True
-    #     return False
-    #
 
     time_before_trigger = 3
 
