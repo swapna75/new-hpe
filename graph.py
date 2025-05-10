@@ -1,8 +1,8 @@
-from interfaces import AbstractGraph, GraphNode, InvalidOperationError
+from interfaces import BaseGraph, GraphNode, InvalidOperationError
 import yaml
 
 
-class ServiceGraph(AbstractGraph):
+class ServiceGraph(BaseGraph):
     def __init__(self, config_file="service_dependancy_map.yaml") -> None:
         self.graph = {}  # map that maintains all the nodes.
         # internally the nodes are connected.
@@ -16,7 +16,10 @@ class ServiceGraph(AbstractGraph):
     def add(
         self, node_id: int, service: str, parents: set[int], children: set[int]
     ) -> GraphNode:
-        this = GraphNode(node_id, service)
+        if node_id in self.graph:
+            this = self.graph[node_id]
+        else:
+            this = GraphNode(node_id, service)
         self.graph[node_id] = this
 
         for child_id in children:

@@ -7,13 +7,13 @@ class InvalidOperationError(Exception):
     pass
 
 
-class AbstractNotifier(ABC):
+class BaseNotifier(ABC):
     @abstractmethod
     async def notify(self, alert: Alert):
         pass
 
 
-class AbstractGraph(ABC):
+class BaseGraph(ABC):
     @abstractmethod
     def add(self, node_id: int, parents: set[int], children: set[int]) -> GraphNode:
         """Add a node to the graph"""
@@ -54,7 +54,7 @@ class AbstractGraph(ABC):
         pass
 
 
-class AbstractMessageQueue(ABC):
+class BaseMessageQueue(ABC):
     @abstractmethod
     async def put(self, event):
         pass
@@ -68,9 +68,9 @@ class AbstractMessageQueue(ABC):
         pass
 
 
-class AbstractDetector(ABC):
+class BaseDetector(ABC):
     @abstractmethod
-    def __init__(self, graph: AbstractGraph, work_queue: AbstractMessageQueue) -> None:
+    def __init__(self, graph: BaseGraph, work_queue: BaseMessageQueue) -> None:
         pass
 
     @abstractmethod
@@ -79,11 +79,9 @@ class AbstractDetector(ABC):
         pass
 
 
-class AbstractListener(ABC):
+class BaseListener(ABC):
     @abstractmethod
-    def __init__(
-        self, detector: AbstractDetector, work_queue: AbstractMessageQueue
-    ) -> None:
+    def __init__(self, detector: BaseDetector, work_queue: BaseMessageQueue) -> None:
         pass
 
     @abstractmethod
@@ -92,7 +90,7 @@ class AbstractListener(ABC):
         pass
 
 
-class AbstractAlertStore(ABC):
+class BaseAlertStore(ABC):
     @abstractmethod
     def __init__(self, url: str) -> None:
         pass

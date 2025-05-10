@@ -44,12 +44,15 @@ class Alert:
         self.startsAt = alert_json["startsAt"]
         self.endsAt = alert_json["endsAt"]
         self.status = status[alert_json["status"]]
-        self.id = self.__get_id()
+        self.is_root_cause = False
 
         self.parent_count = 0
 
         self.decription = alert_json["annotations"]["description"]
         self.summary = alert_json["annotations"]["summary"]
+
+        # self.id = self.__get_id()
+        self.id = self.service + "-" + self.summary
 
     def __str__(self) -> str:
         return f"Alert from service {self.service} started at {self.startsAt} with severity {self.severity}"

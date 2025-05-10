@@ -1,8 +1,8 @@
 import asyncio
-from interfaces import AbstractMessageQueue
+from interfaces import BaseMessageQueue
 
 
-class AsyncQueue(AbstractMessageQueue):
+class AsyncQueue(BaseMessageQueue):
     def __init__(self) -> None:
         self.q = asyncio.Queue()
 

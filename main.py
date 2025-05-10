@@ -2,7 +2,6 @@ import asyncio
 
 from listner import HTTPListener
 
-from log_config import log
 from dependancy import GraphDetector
 from graph import ServiceGraph
 from notifier import ConsoleNotifier
@@ -18,10 +17,13 @@ async def main():
     detector = GraphDetector(graph, mq, store, notifier)
 
     httpserver = HTTPListener(mq)
-    log.info("Starting server the detector application.")
-
     await asyncio.gather(detector.start(), httpserver.listen())
 
 
+def test():
+    pass
+
+
 if __name__ == "__main__":
+    test()
     asyncio.run(main())

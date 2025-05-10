@@ -1,4 +1,4 @@
-from interfaces import AbstractMessageQueue, AbstractListener
+from interfaces import BaseMessageQueue, BaseListener
 from log_config import log
 from aiohttp import web
 
@@ -31,8 +31,8 @@ this is the structure of the alert that will be sent by alertmanager
 """
 
 
-class HTTPListener(AbstractListener):
-    def __init__(self, work_queue: AbstractMessageQueue) -> None:
+class HTTPListener(BaseListener):
+    def __init__(self, work_queue: BaseMessageQueue) -> None:
         self.work_queue = work_queue
         self.app = web.Application()
         self.app.add_routes([web.post("/", self.receive_alert)])

@@ -1,7 +1,7 @@
-from interfaces import AbstractAlertStore
+from interfaces import BaseAlertStore
 
 
-class DictStore(AbstractAlertStore):
+class DictStore(BaseAlertStore):
     def __init__(self, url: str) -> None:
         self.store = {}
         self.id = url  # for this class this url is used as an identifier.
