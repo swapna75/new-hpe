@@ -1,4 +1,5 @@
-from interfaces import BaseMessageQueue, BaseListener
+from . import BaseListener
+from src.message_queue import BaseMessageQueue
 from log_config import log
 from aiohttp import web
 

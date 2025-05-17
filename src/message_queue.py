@@ -1,5 +1,19 @@
+from abc import ABC, abstractmethod
 import asyncio
-from interfaces import BaseMessageQueue
+
+
+class BaseMessageQueue(ABC):
+    @abstractmethod
+    async def put(self, event):
+        pass
+
+    @abstractmethod
+    def put_nowait(self, event):
+        pass
+
+    @abstractmethod
+    async def get(self):
+        pass
 
 
 class AsyncQueue(BaseMessageQueue):

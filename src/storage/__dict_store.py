@@ -1,4 +1,4 @@
-from interfaces import BaseAlertStore
+from . import BaseAlertStore
 
 
 class DictStore(BaseAlertStore):

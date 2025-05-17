@@ -1,10 +1,10 @@
-from interfaces import BaseNotifier
+from . import BaseNotifier
 from log_config import log
-from models import Alert
+from models import AlertGroup
 
 
 class ConsoleNotifier(BaseNotifier):
-    async def notify(self, alert: Alert):
+    async def notify(self, alert: AlertGroup):
         log.info(
             "*******************************\n"
             f"This is root alert {str(alert)}\n"

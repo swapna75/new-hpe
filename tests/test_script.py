@@ -1,7 +1,14 @@
-import aiohttp
 import asyncio
-import sys
 import datetime
+
+from src.message_queue import AsyncQueue
+from src.dependancy import GraphDetector
+from src.graph import ServiceGraph
+from src.interfaces import BaseNotifier
+from src.models import AlertGroup
+from src.store import DictStore
+from src.models import Alert
+
 
 alerts = [
     {
@@ -46,7 +53,16 @@ alerts = [
 ]
 
 
-async def post_data():
+class TestNotifier(BaseNotifier):
+    def __init__(self) -> None:
+        self.to_raise = {}
+
+    async def notify(self, alert: AlertGroup):
+        # check in the to_raise thing.
+        pass
+
+
+async def test_detector():
     patterns = [
         alerts[:1],
         alerts[:2],
@@ -55,18 +71,20 @@ async def post_data():
         alerts[1:3],
         alerts[2:3],
     ]
-    curr_pattern = int(sys.argv[2])
-    port = sys.argv[1]
-    url = f"http://localhost:{port}/"
-    payload = {"alerts": patterns[curr_pattern]}
+    results = []
+    graph = ServiceGraph()
+    mq = AsyncQueue()
+    nf = TestNotifier()
+    a_store = DictStore("/test")
+    gd = GraphDetector(graph, mq, a_store, nf)
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload) as response:
-            print("Status:", response.status)
+    for i in patterns:
+        for al in map(Alert, i):
+            await gd.process_alert(al)
 
 
 async def test():
-    await post_data()
+    await test_detector()
 
 
 if __name__ == "__main__":

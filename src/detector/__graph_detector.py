@@ -1,13 +1,13 @@
 import asyncio
 from log_config import log
 from collections import defaultdict
-from interfaces import (
-    BaseAlertStore,
-    BaseDetector,
-    BaseMessageQueue,
-    BaseGraph,
-    BaseNotifier,
-)
+
+from src.models import AlertGroup
+from src.storage import BaseAlertStore
+from . import BaseDetector
+from src.message_queue import BaseMessageQueue
+from src.graph import BaseGraph
+from src.notifier import BaseNotifier
 from models import ALERT_STATE, Alert, GraphNode
 
 
@@ -161,7 +161,8 @@ class GraphDetector(BaseDetector):
         try:
             await asyncio.sleep(self.delay)
             log.info(f"Notifying about root alert {alert.id}")
-            await self.notifier.notify(alert)
+            # await self.notifier.notify(alert)  # change
+            await self.notifier.notify(AlertGroup())  # change
         except asyncio.CancelledError:
             log.info(f"Notification for {alert.id} cancelled.")
         finally:

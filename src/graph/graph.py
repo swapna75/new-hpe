@@ -1,4 +1,5 @@
-from interfaces import BaseGraph, GraphNode, InvalidOperationError
+from . import BaseGraph, InvalidOperationError
+from src.models import GraphNode
 import yaml
 
 
