@@ -1,12 +1,11 @@
 import asyncio
 
-from listner import HTTPListener
-
-from dependancy import GraphDetector
-from graph import ServiceGraph
-from notifier import ConsoleNotifier
-from message_queue import AsyncQueue
-from store import DictStore
+from src.notifier import ConsoleNotifier
+from src.graph import ServiceGraph
+from src.listners import HTTPListener
+from src.message_queue import AsyncQueue
+from src.detector import GraphDetector
+from src.storage import DictStore
 
 
 async def main():
@@ -17,6 +16,7 @@ async def main():
     detector = GraphDetector(graph, mq, store, notifier)
 
     httpserver = HTTPListener(mq)
+    httpserver.set_feedback_listner(detector.feedback_handler)
     await asyncio.gather(detector.start(), httpserver.listen())
 
 

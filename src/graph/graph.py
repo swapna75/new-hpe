@@ -54,17 +54,23 @@ class ServiceGraph(BaseGraph):
             parent.children.remove(this)
 
     def get_parents(self, id: int):
+        # if id not in self.graph:
+        #     raise InvalidOperationError(f"{id} not in graph.")
+        #
+        # curr = [self.graph[id]]
+        # while len(curr):
+        #     parents = set()
+        #     for i in curr:
+        #         parents.update(i.parents)
+        #     yield from parents
+        #     curr = parents
+        # return
+
         if id not in self.graph:
             raise InvalidOperationError(f"{id} not in graph.")
 
-        curr = [self.graph[id]]
-        while len(curr):
-            parents = set()
-            for i in curr:
-                parents.update(i.parents)
-            yield from parents
-            curr = parents
-        return
+        this = self.graph[id]
+        return this.parents
 
     def get_dependents(self, id) -> list:
         if id not in self.graph:

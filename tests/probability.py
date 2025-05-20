@@ -1,14 +1,19 @@
 import asyncio
 import datetime
-
+import itertools
+import _path
+import logging
 from src.message_queue import AsyncQueue
-from src.detector import GraphDetector
+from src.detector import ProbabilityDetector
 from src.graph import ServiceGraph
 from src.notifier import BaseNotifier
-from src.models import AlertGroup
+from src.models import AlertGroup, Alert
 from src.storage import DictStore
-from src.models import Alert
 
+
+_path.thing = None  # this is to make sure the import is not removed.
+
+log = logging.getLogger(__package__)
 
 alerts = [
     {
@@ -55,32 +60,45 @@ alerts = [
 
 class TestNotifier(BaseNotifier):
     def __init__(self) -> None:
-        self.to_raise = {}
+        self.to_raise = set()
 
-    async def notify(self, alert: AlertGroup):
-        # check in the to_raise thing.
-        pass
+    async def notify(self, alertg: AlertGroup):
+        root = alertg.root
+        if root.id not in self.to_raise:
+            log.critical("A false prediction.")
+        else:
+            log.info(f"found an alert with nedded root `{alertg.root}`")
 
 
 async def test_detector():
-    patterns = [
-        alerts[:1],
-        alerts[:2],
-        alerts[:3],
-        alerts[1:2],
-        alerts[1:3],
-        alerts[2:3],
-    ]
-    results = []
+    global alerts
+
     graph = ServiceGraph()
+    alerts = [*map(Alert, alerts)]
+    patterns = [
+        # alerts[:1],
+        # alerts[:2],
+        # alerts[:3],
+        # alerts[1:2],
+        # alerts[1:3],
+        # alerts[2:3],
+        alerts
+    ]
+    results = [alerts[0].id]
     mq = AsyncQueue()
     nf = TestNotifier()
-    a_store = DictStore("/test")
-    gd = GraphDetector(graph, mq, a_store, nf)
+    a_store = DictStore("test/probability")
+    gd = ProbabilityDetector(graph, mq, a_store, nf)
 
-    for i in patterns:
-        for al in map(Alert, i):
+    for i, res in zip(patterns, results):
+        nf.to_raise.add(res)
+        for al in i:
+            await a_store.put(al.id, al)
             await gd.process_alert(al)
+
+    await asyncio.gather(
+        *itertools.chain(*[t.notify_tasks.values() for t in gd.batches])
+    )
 
 
 async def test():

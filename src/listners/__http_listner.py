@@ -1,6 +1,6 @@
-from . import BaseListener
+from src.models.feedback import FeedBack
+from . import BaseListener, log
 from src.message_queue import BaseMessageQueue
-from log_config import log
 from aiohttp import web
 
 
@@ -36,7 +36,9 @@ class HTTPListener(BaseListener):
     def __init__(self, work_queue: BaseMessageQueue) -> None:
         self.work_queue = work_queue
         self.app = web.Application()
-        self.app.add_routes([web.post("/", self.receive_alert)])
+        self.fb_handler = None
+        self.app.add_routes([web.post("/alerts", self.receive_alert)])
+        self.app.add_routes([web.post("/feedback", self.receive_feedback)])
 
         self.runner = web.AppRunner(self.app)
         self.site = None
@@ -59,6 +61,17 @@ class HTTPListener(BaseListener):
         self.work_queue.put_nowait(convert_to_alerts(alerts))
 
         return web.Response(status=200)
+
+    async def receive_feedback(self, request: web.Request):
+        """Processes the feedback from json to custom Feedback type and sends to detector"""
+        # add logic to change feedback to normal thing
+        fb = FeedBack()  # change
+
+        if self.fb_handler:
+            self.fb_handler(fb)
+
+    def set_feedback_listner(self, handler):
+        self.fb_handler = handler
 
 
 def convert_to_alerts(json_data):

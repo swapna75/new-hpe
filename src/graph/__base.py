@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Generator
 from src.models import GraphNode
 
 
@@ -19,7 +18,7 @@ class BaseGraph(ABC):
         pass
 
     @abstractmethod
-    def get_dependents(self, id) -> list:
+    def get_dependents(self, id) -> list[GraphNode]:
         """Get the services that are depended by the required service"""
         pass
 
@@ -29,7 +28,7 @@ class BaseGraph(ABC):
         pass
 
     @abstractmethod
-    def get_parents(self, id: int) -> Generator:
+    def get_parents(self, id: int) -> list[GraphNode]:
         """This func must yield the parents. according to their depth."""
         pass
 

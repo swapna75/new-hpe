@@ -1,14 +1,14 @@
 import asyncio
-from log_config import log
 from collections import defaultdict
+
 
 from src.models import AlertGroup
 from src.storage import BaseAlertStore
-from . import BaseDetector
+from . import BaseDetector, log
 from src.message_queue import BaseMessageQueue
 from src.graph import BaseGraph
 from src.notifier import BaseNotifier
-from models import ALERT_STATE, Alert, GraphNode
+from src.models import ALERT_STATE, Alert, GraphNode
 
 
 class GraphDetector(BaseDetector):
@@ -28,36 +28,21 @@ class GraphDetector(BaseDetector):
         store: BaseAlertStore,
         notifier: BaseNotifier,
     ) -> None:
-        self.dep_graph = graph
-        self.queue = work_queue
-        self.store = store
-        self.notifier = notifier
+        super().__init__(graph, work_queue, store, notifier)
 
-        # Active alerts by service
         self.active_by_service: dict[str, list[str]] = defaultdict(list)
-        # Causal links: parent alert -> [child alerts]
         self.children: dict[str, list[str]] = defaultdict(list)
-        # Pending root notifications: alert_id -> Task
         self.notify_tasks: dict[str, asyncio.Task] = {}
-        # Alerts flagged as root cause
         self.roots: set[str] = set()
 
         # Delay before actual notification
         self.delay = 40
 
-    async def start(self):
-        while True:
-            batch = await self.queue.get()
-            for raw in sorted(batch, key=lambda x: x.get("startsAt")):
-                alert = Alert(raw)
-                if alert.severity == "critical":
-                    await self.process_alert(alert)
-
     async def process_alert(self, alert: Alert):
         log.debug(f"Processing alert {alert.id} ({alert.service})")
 
         # Handle resolved first
-        stored = await self.store.get(alert.id)
+        stored, _ = await self.store.get(alert.id)
         if stored:
             if (
                 stored.status == ALERT_STATE.FIRING
@@ -78,7 +63,7 @@ class GraphDetector(BaseDetector):
 
         # Find any parent alerts for this service
         try:
-            node = self.dep_graph.get_node(GraphNode.get_id(alert.service))
+            node = self.service_graph.get_node(GraphNode.get_id(alert.service))
         except Exception as e:
             log.warning(f"Graph node missing for {alert.service}: {e}")
             return
@@ -127,17 +112,17 @@ class GraphDetector(BaseDetector):
         If a root candidate exists for which this alert.service is a parent, cancel it.
         """
         try:
-            pnode = self.dep_graph.get_node(GraphNode.get_id(parent.service))
+            pnode = self.service_graph.get_node(GraphNode.get_id(parent.service))
         except Exception:
             return
 
         # For every waiting root alert, check if parent.service is upstream
         for rid in list(self.roots):
-            ralert = await self.store.get(rid)
+            ralert, _ = await self.store.get(rid)
             if not ralert:
                 continue
             try:
-                rnode = self.dep_graph.get_node(GraphNode.get_id(ralert.service))
+                rnode = self.service_graph.get_node(GraphNode.get_id(ralert.service))
             except Exception:
                 continue
 

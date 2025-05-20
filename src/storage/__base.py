@@ -8,7 +8,7 @@ class BaseAlertStore(ABC):
         pass
 
     @abstractmethod
-    async def get(self, id) -> Alert:
+    async def get(self, id) -> tuple[Alert, int]:
         pass
 
     @abstractmethod
@@ -17,6 +17,10 @@ class BaseAlertStore(ABC):
 
     @abstractmethod
     async def has(self, id) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_count(self, id) -> int:
         pass
 
     @abstractmethod

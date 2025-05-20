@@ -4,5 +4,5 @@ from src.models import AlertGroup
 
 class BaseNotifier(ABC):
     @abstractmethod
-    async def notify(self, alert: AlertGroup):
+    async def notify(self, alertg: AlertGroup):
         pass

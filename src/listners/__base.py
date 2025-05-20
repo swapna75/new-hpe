@@ -12,3 +12,7 @@ class BaseListener(ABC):
     async def listen(self):
         """this is to start the listner."""
         pass
+
+    @abstractmethod
+    def set_feedback_listner(self, handler):
+        pass
