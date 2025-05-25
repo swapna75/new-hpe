@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
-
 from src.models.node import GraphNode
 
 
@@ -22,6 +21,7 @@ class Alert:
     def __init__(self, alert_json: dict) -> None:
         self.alert = alert_json
         self.service_name = alert_json["labels"]["job"]
+        # self.service = alert_json["labels"]["job"]
         self.service = GraphNode.get_id(self.service_name)
         self.severity = alert_json["labels"]["severity"]
         self.startsAt = change_to_date(alert_json["startsAt"])
@@ -38,7 +38,7 @@ class Alert:
         # self.id = self.service + "-" + self.summary
 
     def __str__(self) -> str:
-        return f"Alert from service {self.service} started at {self.startsAt} with severity {self.severity}"
+        return f"Alert from service {self.service_name} started at {self.startsAt} with severity {self.severity}"
 
     def __get_id(self) -> int:
         s = str(frozenset(self.alert["labels"].items()))

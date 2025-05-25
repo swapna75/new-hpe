@@ -16,7 +16,7 @@ class DictStore(BaseAlertStore):
         return id in self.store
 
     async def get_count(self, id):
-        return self.store.get(id, 0)
+        return self.store.get(id, [None, 0])[1]
 
     async def remove(self, id):
-        self.store.pop(id, None)
+        self.store[id][1] = 0

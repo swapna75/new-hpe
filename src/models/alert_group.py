@@ -32,4 +32,4 @@ class AlertGroup:
         return self.h
 
     def __str__(self) -> str:
-        return f"<AlertGroup with root: {self.root} ({self.root.summary}, {self.root.service})>"
+        return f"<AlertGroup with root: {self.root} ({self.root.summary}, {self.root.service_name})>"

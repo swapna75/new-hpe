@@ -11,28 +11,37 @@ from src.graph import BaseGraph
 from src.notifier import BaseNotifier
 from src.models import Alert
 
-DELTA_TIME = timedelta(seconds=30)
+DELTA_TIME = timedelta(seconds=100)
 CONFIDENCE_THRESHOLD = 0.2
 
 INITIAL_ALPHA = 1
 INITIAL_BETA = 1
 
-DELAY = 20
+DELAY = 5
 
 
 class AlertBatch:
     """Maintains a sliding window batch of alerts and their causal links."""
 
-    def __init__(self, graph: BaseGraph, store: BaseAlertStore, notifier: BaseNotifier):
+    def __init__(
+        self,
+        graph: BaseGraph,
+        store: BaseAlertStore,
+        notifier: BaseNotifier,
+        links: dict,
+        trigger_delete=lambda x: None,
+    ):
         self.service_graph = graph
         self.store = store
         self.notifier = notifier
+        self.deleter = trigger_delete
+
+        self.links = links
 
         self.lower_bound: datetime = None
         self.upper_bound: datetime = None
 
         self.curr_alerts = set()  # set[Alert]
-        self.links = {}  # (A.id, B.id) -> (alpha, beta)
         self.service_to_alert: dict[int, set[Alert]] = defaultdict(set)
         self.notify_tasks: dict[int, asyncio.Task] = {}
         self.groups: list[AlertGroup] = []
@@ -55,10 +64,21 @@ class AlertBatch:
         if not temporality:
             return False
 
+        linked = False
+
+        if alert.service in self.service_to_alert and len(
+            self.service_to_alert[alert.service]
+        ):
+            log.debug("Found same service is having an alert.")
+            for o_alert in self.service_to_alert[alert.service]:
+                linked = True
+                if (o_alert.id, alert.id) not in self.links:
+                    self.links[(o_alert.id, alert.id)] = [INITIAL_ALPHA, INITIAL_BETA]
+                if (alert.id, o_alert.id) not in self.links:
+                    self.links[(alert.id, o_alert.id)] = [INITIAL_ALPHA, INITIAL_BETA]
+
         parents = self.service_graph.get_parents(alert.service)
         children = self.service_graph.get_dependents(alert.service)
-
-        linked = False
 
         for p in parents:
             for p_alert in self.service_to_alert[p.id]:
@@ -98,10 +118,10 @@ class AlertBatch:
                 continue
 
             a, b = link
-            if a == alert.id:
+            if a == alert.id and (await self.store.get_count(b)) != 0:
                 children.append(b)
 
-            if b == alert.id:
+            if b == alert.id and (await self.store.get_count(a)) != 0:
                 parents.append(a)
 
         # if this has no parent then this may be a root
@@ -111,70 +131,109 @@ class AlertBatch:
         best_strenght = -float("inf")
         best_child = None
         for child in children:
-            decision, strength = self.check_link_strength(alert.id, child)
+            decision, strength = self.get_strength(alert.id, child)
             log.debug(f"Child: {decision=}, {strength=} for ({alert.id}, {child})")
 
             if decision:
-                if best_strenght < strength:
+                if best_strenght <= strength:
                     best_strenght = strength
                     best_child = child
-                if not len(parents) > 0:
-                    have_poked_a_child = True
+                have_poked_a_child = True
 
         have_poked_a_parent = False
         best_strenght = -float("inf")
         best_parent = None
         for parent in parents:
-            decision, strength = self.check_link_strength(parent, alert.id)
+            decision, strength = self.get_strength(parent, alert.id)
             log.debug(f"Parent: {decision=}, {strength=} for ({parent}, {alert.id})")
             if decision:
                 have_poked_a_parent = True
-                if best_strenght < strength:
+                if best_strenght <= strength:
                     best_strenght = strength
                     best_parent = parent
 
         # in the further iterations add a case where the strength delta
         # is betweeen them in the less then add multiple childs for the current root.
 
-        if (
-            not have_poked_a_child and not have_poked_a_parent
-        ):  # assuming no child and no parent
-            # create a new group
-            log.debug("found no child and parent with strong enough link.")
-            alert.group = AlertGroup(alert)
-            self.register_as_a_root(alert)
-            return
-        elif not have_poked_a_parent:  # assuming no parent but a possible child
-            log.debug("found only children.")
-            # add to childs grp replacing the child as root
-            c_alert, _ = await self.store.get(best_child)
+        # special case:
+        # here we need to check weather the child have any other parent.
+        # if it have more link strength. then skip to only parent
+        if have_poked_a_child and have_poked_a_parent:
+            if self.check_for_other_parents(alert.id, best_child):
+                have_poked_a_child = False
 
-            if best_child in self.notify_tasks:
-                log.debug(f"the best alert child for the {alert.id} is {best_child}")
-                tsk = self.notify_tasks.get(best_child)
-                tsk.cancel()
-
-            alert.group = c_alert.group
-            self.register_as_a_root(alert)
-        elif not have_poked_a_child:  # assuming no child but a parent
-            log.debug("found only parent.")
-            # add to parents grp without replacing any thing
-            p_alert, _ = await self.store.get(best_parent)
-            alert.group = p_alert.group
-        else:  # assuming both parents and children
+        if have_poked_a_child and have_poked_a_parent:
+            # assuming both parents and children
             # for now only considering best child and best parent.
             # bridge this alert between them
+
             log.debug("found both parent and child.")
 
             p_alert, _ = await self.store.get(best_parent)
             c_alert, _ = await self.store.get(best_child)
 
             alert.group = p_alert.group
-            parent_grp = p_alert.group
-            other_grp: AlertGroup = c_alert.group
-            for c_al in other_grp.group:  # convert the childs group to this group
+            parent_grp: AlertGroup = p_alert.group
+            child_grp: AlertGroup = c_alert.group
+
+            log.debug(f"connecting {c_alert.id} to {p_alert.id}")
+            print(">>>>>>>>>>> ", id(parent_grp))
+
+            for c_al in child_grp.group:  # convert the childs group to this group
+                parent_grp.add_other(c_al)
                 c_al.group = parent_grp
-            other_grp.group.clear()  # remove all alerts pointing to it
+            parent_grp.add_other(alert)
+            child_grp.group.clear()  # remove all alerts pointing to it
+
+        elif have_poked_a_child:  # assuming no parent but a possible child
+            # here we need to check weather the child have any other parent. then check for the.
+
+            log.debug("found only children.")
+            # add to childs grp replacing the child as root
+            c_alert, _ = await self.store.get(best_child)
+
+            log.debug(f"the best alert child for the {alert.id} is {best_child}")
+            if best_child in self.notify_tasks:
+                tsk = self.notify_tasks.get(best_child)
+                tsk.cancel()
+
+            grp = c_alert.group
+            print(">>>>>>>>>>> ", id(grp))
+            alert.group = grp
+            grp.add_root(alert)
+            self.register_as_a_root(alert)
+        elif have_poked_a_parent:  # assuming no child but a parent
+            log.debug("found only parent.")
+            # add to parents grp without replacing any thing
+            log.debug(f"the best alert parent for the {alert.id} is {best_parent}")
+            p_alert, _ = await self.store.get(best_parent)
+            grp: AlertGroup = p_alert.group
+            print(">>>>>>>>>>> ", id(grp))
+            alert.group = grp
+            grp.add_other(alert)
+        else:
+            # assuming no child and no parent
+            # create a new group
+            log.debug("found no child and parent with strong enough link.")
+            new_grp = AlertGroup(alert)
+            print(">>>>>>>>>>> ", id(new_grp))
+
+            alert.group = new_grp
+            self.groups.append(new_grp)
+            self.register_as_a_root(alert)
+            return
+
+    def check_for_other_parents(self, curr_id, child_id):
+        _, curr_strength = self.get_strength(curr_id, child_id)
+        for a, b in self.links.keys():
+            if b != child_id:
+                continue
+
+            _, other_strenght = self.get_strength(a, b)
+            if curr_strength <= other_strenght:
+                return True
+
+        return False
 
     def register_as_a_root(self, alert: Alert):
         log.debug(f"registering {alert.id} as root")
@@ -187,13 +246,15 @@ class AlertBatch:
         )  # change this to new task that registered as wait time and send the request.
         self.notify_tasks[alert.id] = new_tsk
 
-    def check_link_strength(self, parent_id: int, child_id: int) -> tuple[bool, float]:
+    def get_strength(self, parent_id: int, child_id: int) -> tuple[bool, float]:
         alpha, beta_ = self.links.get(
             (parent_id, child_id), (INITIAL_ALPHA, INITIAL_BETA)
         )
         total = alpha + beta_
+        print(alpha, beta_)
 
         strength = alpha / total
+        print(alpha, beta_, strength)
 
         should = strength >= 0.3
         return should, strength
@@ -204,6 +265,9 @@ class AlertBatch:
             await asyncio.sleep(DELAY)
             log.info(f"Notifying root={root.id} for {len(group.group)} alerts")
             await self.notifier.notify(group)
+            # self.groups.remove(group)
+            if len(self.groups) == 0:
+                self.deleter(self)
         except asyncio.CancelledError:
             log.debug(
                 f"Notify task cancelled for group with root {str(group.root.id)[:10]} (new alert arrived)."
@@ -224,7 +288,7 @@ class ProbabilityDetector(BaseDetector):
     ):
         super().__init__(graph, work_queue, store, notifier)
 
-        self.counts = defaultdict(lambda: [INITIAL_ALPHA, INITIAL_BETA])
+        self.links = defaultdict(lambda: [INITIAL_ALPHA, INITIAL_BETA])
         self.batches: list[AlertBatch] = []
 
     async def process_alert(self, alert: Alert):
@@ -239,7 +303,13 @@ class ProbabilityDetector(BaseDetector):
             "Creating new batch because the alert is not linkable to other batches."
         )
 
-        new_batch = AlertBatch(self.service_graph, self.store, self.notifier)
+        new_batch = AlertBatch(
+            self.service_graph,
+            self.store,
+            self.notifier,
+            self.links,
+            self.trigger_delete,
+        )
         new_batch.curr_alerts.add(alert)
         new_batch.service_to_alert[alert.service].add(alert)
         alert.batch = new_batch
@@ -249,15 +319,19 @@ class ProbabilityDetector(BaseDetector):
 
     async def feedback_handler(self, fb: FeedBack):
         for (cause, effect), confirmed in fb.relations.items():
-            key = (cause.id, effect.id)
-            alpha, beta_ = self.counts[key]
-            beta_ += 1  # one more trial
+            key = (cause, effect)
+            alpha, beta_ = self.links[key]
             if confirmed:
                 alpha += 1  # one more success
-            self.counts[key] = [alpha, beta_]
+            else:
+                beta_ += 2
+            self.links[key] = [alpha, beta_]
+            log.debug(f"Updating link with {key=} by {alpha=}, {beta_}")
 
-            # Propagate to any open batches so their link strengths are up-to-date:
-            for batch in self.batches:
-                if key in batch.links:
-                    batch.links[key] = [alpha, beta_]
         log.info("Causal link counts updated from feedback.")
+
+    def trigger_delete(self, ag: AlertBatch):
+        log.debug(f"deleting AlertGroup with root as {ag}")
+        ind = self.batches.index(ag)
+        if ind != -1:
+            self.batches.pop(ind)
