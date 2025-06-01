@@ -177,7 +177,7 @@ class AlertBatch:
             child_grp: AlertGroup = c_alert.group
 
             log.debug(f"connecting {c_alert.id} to {p_alert.id}")
-            print(">>>>>>>>>>> ", id(parent_grp))
+            # print(">>>>>>>>>>> ", id(parent_grp))
 
             for c_al in child_grp.group:  # convert the childs group to this group
                 parent_grp.add_other(c_al)
@@ -198,7 +198,7 @@ class AlertBatch:
                 tsk.cancel()
 
             grp = c_alert.group
-            print(">>>>>>>>>>> ", id(grp))
+            # print(">>>>>>>>>>> ", id(grp))
             alert.group = grp
             grp.add_root(alert)
             self.register_as_a_root(alert)
@@ -208,7 +208,7 @@ class AlertBatch:
             log.debug(f"the best alert parent for the {alert.id} is {best_parent}")
             p_alert, _ = await self.store.get(best_parent)
             grp: AlertGroup = p_alert.group
-            print(">>>>>>>>>>> ", id(grp))
+            # print(">>>>>>>>>>> ", id(grp))
             alert.group = grp
             grp.add_other(alert)
         else:
@@ -216,7 +216,7 @@ class AlertBatch:
             # create a new group
             log.debug("found no child and parent with strong enough link.")
             new_grp = AlertGroup(alert)
-            print(">>>>>>>>>>> ", id(new_grp))
+            # print(">>>>>>>>>>> ", id(new_grp))
 
             alert.group = new_grp
             self.groups.append(new_grp)
@@ -251,10 +251,10 @@ class AlertBatch:
             (parent_id, child_id), (INITIAL_ALPHA, INITIAL_BETA)
         )
         total = alpha + beta_
-        print(alpha, beta_)
+        # print(alpha, beta_)
 
         strength = alpha / total
-        print(alpha, beta_, strength)
+        # print(alpha, beta_, strength)
 
         should = strength >= 0.3
         return should, strength
