@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import json
 
@@ -16,21 +20,38 @@ async def main():
     graph = ServiceGraph()
     mq = AsyncQueue()
     store = DictStore("test/alerts")
-    
-    # Load historical data
+
+    # Load and parse historical alert data
     with open("historical_alerts.json", "r") as f:
         alert_jsons = json.load(f)["alerts"]
-    historical_alerts = [Alert(a) for a in alert_jsons]
 
-    # Compute α/β strengths
-    precomputed_links = preprocess_alert_links(historical_alerts, graph)
+    historical_alerts = []
+    for alert_data in alert_jsons:
+        try:
+            alert = Alert(alert_data)
+            if graph.has_node(alert.service):  
+                historical_alerts.append(alert)
+        except Exception as e:
+            print(f"[WARNING] Skipping invalid alert: {e}")
 
-    # Initialize detector with historical knowledge
+    # Compute α/β link strengths using valid historical alerts
+    precomputed_links = preprocess_alert_links(historical_alerts, graph)    
+    print("Preprocessing summary:")
+    print(f"Total historical alerts used: {len(historical_alerts)}")
+    print(f"Total computed links: {len(precomputed_links)}")
+
+    for i, ((src, dst), (alpha, beta)) in enumerate(precomputed_links.items()):
+        print(f"Link {i+1}: {src} → {dst} | α={alpha}, β={beta}")
+        if i == 4:
+            break 
+
+
+    # Initialize detector
     detector = ProbabilityDetector(graph, mq, store, notifier, precomputed_links)
 
+    # Set up listener and start services
     httpserver = HTTPListener(mq)
     httpserver.set_feedback_listner(detector.feedback_handler)
-
     await asyncio.gather(detector.start(), httpserver.listen())
 
 
