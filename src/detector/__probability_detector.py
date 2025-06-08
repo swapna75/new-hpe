@@ -289,9 +289,10 @@ class ProbabilityDetector(BaseDetector):
     ):
         super().__init__(graph, work_queue, store, notifier)
 
-        self.links = precomputed_links or defaultdict(lambda: [INITIAL_ALPHA, INITIAL_BETA])
+        self.links = precomputed_links or defaultdict(
+            lambda: [INITIAL_ALPHA, INITIAL_BETA]
+        )
         self.batches: list[AlertBatch] = []
-
 
     async def process_alert(self, alert: Alert):
         log.debug(f"Processing alert {alert.id} {alert.service_name} {alert.summary}")
@@ -326,7 +327,8 @@ class ProbabilityDetector(BaseDetector):
             if confirmed:
                 alpha += 1  # one more success
             else:
-                beta_ += 2
+                beta_ += 1
+            beta_ += 1
             self.links[key] = [alpha, beta_]
             log.debug(f"Updating link with {key=} by {alpha=}, {beta_}")
 

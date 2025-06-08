@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import itertools
+import json
 import _path
 import logging
 from src.message_queue import AsyncQueue
@@ -9,6 +10,7 @@ from src.graph import ServiceGraph
 from src.notifier import BaseNotifier
 from src.models import AlertGroup, Alert, FeedBack
 from src.storage import DictStore
+from src.preprocessing.causal_inference import compute_alpha_beta_links
 
 
 _path.thing = None  # this is to make sure the import is not removed.
@@ -123,8 +125,8 @@ async def test_detector():
 
     graph = ServiceGraph()
     alerts = [*map(Alert, alerts)]
-    for i, a in enumerate(alerts):
-        a.id = str(i + 1001)
+    # for i, a in enumerate(alerts):
+    # a.id = str(i + 1001)
     unq_fbs = [
         FeedBack(f"""
             [
@@ -159,9 +161,18 @@ async def test_detector():
     mq = AsyncQueue()
     nf = TestNotifier()
     a_store = DictStore("test/probability")
-    gd = ProbabilityDetector(graph, mq, a_store, nf)
+
+    with open("temp.json", "r") as f:
+        alert_jsons = json.load(f)["alerts"]
+    historical_alerts = [Alert(a) for a in alert_jsons]
+
+    # Compute α/β strengths
+    precomputed_links = compute_alpha_beta_links(historical_alerts, graph)
+    gd = ProbabilityDetector(graph, mq, a_store, nf, precomputed_links)
 
     for p, res, f in zip(patterns, results, fbs):
+        print(precomputed_links)
+        print("********************************")
         for r in res:
             nf.to_raise.add(r.id)
         for al in p:
