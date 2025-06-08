@@ -12,9 +12,16 @@ class ALERT_STATE(Enum):
 status = {"resolved": ALERT_STATE.RESOLVED, "firing": ALERT_STATE.FIRING}
 
 
+# def change_to_date(t_str):
+#     dt = datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+#     return dt
+
 def change_to_date(t_str):
-    dt = datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    return dt
+    # Accepts both with and without milliseconds
+    try:
+        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
 
 class Alert:

@@ -2,7 +2,7 @@
     "alerts": [
       {
         "status": "firing",
-        "labels": { "job": "xgboost" },
+        "labels": { "job": "xgboost" ,"severity":"critical"},
         "annotations": {
           "summary": "XGBoost Service Down",
           "description": "XGBoost service is down."
@@ -12,7 +12,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "backend" },
+        "labels": { "job": "backend" ,"severity":"critical"},
         "annotations": {
           "summary": "High HTTP Failure Rate",
           "description": "More than 5% of HTTP requests are failing for the past 5 minutes."
@@ -22,7 +22,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "support-vector-machine" },
+        "labels": { "job": "support-vector-machine" ,"severity":"critical"},
         "annotations": {
           "summary": "Support Vector Machine Service Down",
           "description": "Support Vector Machine service is down."
@@ -32,7 +32,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "random-forest" },
+        "labels": { "job": "random-forest" ,"severity":"critical"},
         "annotations": {
           "summary": "Random Forest Service Down",
           "description": "Random Forest service is down."
@@ -42,7 +42,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "multinominal-naive-bayes" },
+        "labels": { "job": "multinominal-naive-bayes" ,"severity":"critical"},
         "annotations": {
           "summary": "Multinominal Naive Bayes Service Down",
           "description": "Multinominal Naive Bayes service is down."
@@ -52,7 +52,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "multilayer-perceptron" },
+        "labels": { "job": "multilayer-perceptron" ,"severity":"critical"},
         "annotations": {
           "summary": "Multilayer Perceptron Service Down",
           "description": "Multilayer Perceptron service is down."
@@ -62,7 +62,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "logistic-regression" },
+        "labels": { "job": "logistic-regression" ,"severity":"critical"},
         "annotations": {
           "summary": "Logistic Regression Service Down",
           "description": "Logistic Regression service is down."
@@ -72,7 +72,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "knn" },
+        "labels": { "job": "knn" ,"severity":"critical"},
         "annotations": {
           "summary": "KNN Service Down",
           "description": "KNN service is down."
@@ -82,7 +82,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "gradient-boost" },
+        "labels": { "job": "gradient-boost" ,"severity":"critical"},
         "annotations": {
           "summary": "Gradient Boost Service Down",
           "description": "Gradient Boost service is down."
@@ -92,7 +92,7 @@
       },
       {
         "status": "firing",
-        "labels": { "job": "gaussian-naive-bayes" },
+        "labels": { "job": "gaussian-naive-bayes" ,"severity":"critical"},
         "annotations": {
           "summary": "Gaussian Naive Bayes Service Down",
           "description": "Gaussian Naive Bayes service is down."
