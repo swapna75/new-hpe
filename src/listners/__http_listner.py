@@ -1,8 +1,12 @@
+import logging
 from src.models.feedback import FeedBack
+from src.notifier import WsNotifier
 from . import BaseListener, log
 from src.message_queue import BaseMessageQueue
 from aiohttp import web
 
+
+logger = logging.getLogger(__name__)
 
 """
 this is the structure of the alert that will be sent by alertmanager
@@ -33,12 +37,19 @@ this is the structure of the alert that will be sent by alertmanager
 
 
 class HTTPListener(BaseListener):
-    def __init__(self, work_queue: BaseMessageQueue) -> None:
+    def __init__(self, work_queue: BaseMessageQueue, notifier: WsNotifier) -> None:
         self.work_queue = work_queue
         self.app = web.Application()
         self.fb_handler = None
-        self.app.add_routes([web.post("/alerts", self.receive_alert)])
-        self.app.add_routes([web.post("/feedback", self.receive_feedback)])
+        self.w_sockets = set()
+        self.notifier = notifier
+        self.app.add_routes(
+            [
+                web.post("/alerts", self.receive_alert),
+                web.post("/feedback", self.receive_feedback),
+                web.get("/ws", self.web_socket_handler),
+            ]
+        )
 
         self.runner = web.AppRunner(self.app)
         self.site = None
@@ -65,7 +76,7 @@ class HTTPListener(BaseListener):
     async def receive_feedback(self, request: web.Request):
         """Processes the feedback from json to custom Feedback type and sends to detector"""
         # add logic to change feedback to normal thing
-        fb = FeedBack()  # change
+        fb = FeedBack(await request.json())  # change
 
         if self.fb_handler:
             self.fb_handler(fb)
@@ -73,6 +84,24 @@ class HTTPListener(BaseListener):
     def set_feedback_listner(self, handler):
         self.fb_handler = handler
 
+    async def web_socket_handler(self, request: web.Request):
+        logger.debug("A new ws request arrived.")
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        logger.debug("Upgraded to websocket")
+        self.w_sockets.add(ws)
+
+        await self.notifier.add_wsocket(ws)
+        logger.debug("sent all batches.")
+        async for msg in ws:
+            # if a in comming msg comes then exit
+            break
+
+        await self.notifier.delete_websocket(ws)
+
+        return ws
+
 
 def convert_to_alerts(json_data):
+    logger.debug("Alert came processing it.", json_data)
     return json_data["alerts"]

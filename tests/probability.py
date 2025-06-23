@@ -1,108 +1,412 @@
 import asyncio
-import datetime
 import itertools
 import json
+from pathlib import Path
 import _path
 import logging
 from src.message_queue import AsyncQueue
-from src.detector import ProbabilityDetector
 from src.graph import ServiceGraph
-from src.notifier import BaseNotifier
-from src.models import AlertGroup, Alert, FeedBack
+from src.models import Alert
 from src.storage import DictStore
-from src.preprocessing.causal_inference import compute_alpha_beta_links
-
+from src.preprocessing.causal_inference import batch_alerts, compute_alpha_beta_links
+from src.detector import ProbabilityDetector
+from src.notifier import BaseNotifier, ConsoleNotifier
+from src.models import AlertGroup
 
 _path.thing = None  # this is to make sure the import is not removed.
 
+data_path = Path(__file__).parent.parent / "test_data/data"
+
 log = logging.getLogger(__package__)
 
-alerts = [
-    {
-        "labels": {
-            "job": "database",
-            "instance": "1",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 30, 2).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 30, 53).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "database alert 1.",
-            "summary": "'database instance 1 down'",
-        },
-    },
-    {
-        "labels": {
-            "job": "database",
-            "instance": "2",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 30, 1).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 30, 57).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "database alert 2.",
-            "summary": "'database instance 2 down'",
-        },
-    },
-    {
-        "labels": {
-            "job": "knn",
-            "instance": "1",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 30, 7).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 31, 0).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "knn alert 1.",
-            "summary": "knn service 1 down.",
-        },
-    },
-    {
-        "labels": {
-            "instance": "2",
-            "job": "knn",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 30, 8).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 31, 10).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "knn alert 2.",
-            "summary": "'knn instance 2 down'",
-        },
-    },
-    {
-        "labels": {
-            "instance": "1",
-            "job": "backend",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 31, 40).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 32, 10).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "backend alert 1.",
-            "summary": "'backend instance 1 down'",
-        },
-    },
-    {
-        "labels": {
-            "instance": "2",
-            "job": "backend",
-            "severity": "critical",
-        },
-        "startsAt": datetime.datetime(2025, 3, 1, 12, 31, 45).isoformat() + "Z",
-        "endsAt": datetime.datetime(2025, 3, 1, 12, 32, 11).isoformat() + "Z",
-        "status": "firing",
-        "annotations": {
-            "description": "backend alert 2.",
-            "summary": "'backend instance 2 down'",
-        },
-    },
-]
+graph = ServiceGraph("test_data/test_service_map.yaml")
+pattren = batch_alerts(
+    list(
+        map(
+            Alert,
+            [
+                {
+                    "labels": {
+                        "job": "product-catalog-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T15:07:56.789624",
+                    "endsAt": "2027-02-01T15:09:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Metadata sync delay",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T15:08:31.789624",
+                    "endsAt": "2027-02-01T15:10:31.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Stock consistency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "shipping-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T15:09:36.789624",
+                    "endsAt": "2027-02-01T15:11:36.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Carrier API failure surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T15:39:56.789624",
+                    "endsAt": "2027-02-01T15:41:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T15:40:13.789624",
+                    "endsAt": "2027-02-01T15:42:13.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation latency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:16:56.789624",
+                    "endsAt": "2027-02-01T16:18:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:17:22.789624",
+                    "endsAt": "2027-02-01T16:19:22.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation latency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:17:43.789624",
+                    "endsAt": "2027-02-01T16:19:43.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:56:56.789624",
+                    "endsAt": "2027-02-01T16:58:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "shipping-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:57:18.789624",
+                    "endsAt": "2027-02-01T16:59:18.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Shipping delay warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "order-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T16:57:33.789624",
+                    "endsAt": "2027-02-01T16:59:33.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Order backlog risk",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "product-catalog-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T17:43:56.789624",
+                    "endsAt": "2027-02-01T17:45:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Read error surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "order-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T17:44:28.789624",
+                    "endsAt": "2027-02-01T17:46:28.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Validation error surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T17:44:34.789624",
+                    "endsAt": "2027-02-01T17:46:34.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Update failure increase",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "payment-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T17:44:47.789624",
+                    "endsAt": "2027-02-01T17:46:47.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "High retry rate",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "product-catalog-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T18:18:56.789624",
+                    "endsAt": "2027-02-01T18:20:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Metadata sync delay",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T18:19:26.789624",
+                    "endsAt": "2027-02-01T18:21:26.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Stock consistency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "shipping-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T18:20:26.789624",
+                    "endsAt": "2027-02-01T18:22:26.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Carrier API failure surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T18:53:56.789624",
+                    "endsAt": "2027-02-01T18:55:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T18:54:43.789624",
+                    "endsAt": "2027-02-01T18:56:43.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation latency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T19:32:56.789624",
+                    "endsAt": "2027-02-01T19:34:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Update failure increase",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T19:33:20.789624",
+                    "endsAt": "2027-02-01T19:35:20.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Stock consistency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "shipping-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T19:33:24.789624",
+                    "endsAt": "2027-02-01T19:35:24.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Carrier API failure surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T19:35:08.789624",
+                    "endsAt": "2027-02-01T19:37:08.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation model errors",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "user-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T20:07:56.789624",
+                    "endsAt": "2027-02-01T20:09:56.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Session latency high",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "order-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T20:08:34.789624",
+                    "endsAt": "2027-02-01T20:10:34.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Order backlog risk",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-02-01T20:09:34.789624",
+                    "endsAt": "2027-02-01T20:11:34.789624",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation latency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                },
+            ],
+        )
+    )
+)
 
 
 class TestNotifier(BaseNotifier):
@@ -121,72 +425,130 @@ class TestNotifier(BaseNotifier):
 
 
 async def test_detector():
-    global alerts
-
-    graph = ServiceGraph()
-    alerts = [*map(Alert, alerts)]
-    # for i, a in enumerate(alerts):
-    # a.id = str(i + 1001)
-    unq_fbs = [
-        FeedBack(f"""
+    pattren = [
+        *map(
+            Alert,
             [
-                ["{alerts[0].id}", "{alerts[2].id}", true],
-                ["{alerts[2].id}", "{alerts[4].id}", true]
-            ]
-            """),
-        FeedBack(f"""
-            [
-                ["{alerts[1].id}", "{alerts[0].id}", false],
-                ["{alerts[0].id}", "{alerts[1].id}", false],
-                ["{alerts[1].id}", "{alerts[3].id}", true],
-                ["{alerts[0].id}", "{alerts[2].id}", true],
-                ["{alerts[3].id}", "{alerts[5].id}", true],
-                ["{alerts[3].id}", "{alerts[4].id}", false],
-                ["{alerts[5].id}", "{alerts[4].id}", true],
-                ["{alerts[2].id}", "{alerts[4].id}", true]
-            ]
-            """),
-        FeedBack("[]"),
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-01-01T12:32:00",
+                    "endsAt": "2027-01-01T12:33:00",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Update failure increase",
+                        "summary": "'database instance 1 down'",
+                    },
+                    "id": "",
+                },
+                {
+                    "labels": {
+                        "job": "shipping-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-01-01T12:34:00",
+                    "endsAt": "2027-01-01T12:35:00",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Carrier API failure surge",
+                        "summary": "'database instance 1 down'",
+                    },
+                    "id": "",
+                },
+                {
+                    "labels": {
+                        "job": "inventory-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-01-01T12:36:00",
+                    "endsAt": "2027-01-01T12:37:00",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Stock consistency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                    "id": "",
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "2",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-01-01T12:38:00",
+                    "endsAt": "2027-01-01T12:39:00",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation model errors",
+                        "summary": "'database instance 1 down'",
+                    },
+                    "id": "",
+                },
+                {
+                    "labels": {
+                        "job": "recommendation-service",
+                        "instance": "1",
+                        "severity": "critical",
+                    },
+                    "startsAt": "2027-01-01T12:38:00",
+                    "endsAt": "2027-01-01T12:39:00",
+                    "status": "firing",
+                    "annotations": {
+                        "description": "Recommendation latency warning",
+                        "summary": "'database instance 1 down'",
+                    },
+                    "id": "",
+                },
+            ],
+        )
     ]
 
-    patterns = [alerts[::2], alerts[1::2], alerts[::2], alerts[1::2], alerts]
-    results = [
-        [alerts[0]],
-        [alerts[1]],
-        [alerts[0]],
-        [alerts[1]],
-        [alerts[0], alerts[1]],
-    ]
-    fbs = [unq_fbs[0], unq_fbs[1], unq_fbs[2], unq_fbs[2], unq_fbs[2]]
     mq = AsyncQueue()
-    nf = TestNotifier()
+    nf = ConsoleNotifier()
     a_store = DictStore("test/probability")
 
-    with open("temp.json", "r") as f:
-        alert_jsons = json.load(f)["alerts"]
+    alert_jsons = []
+    for f in data_path.iterdir():
+        with open(f, "r") as fp:
+            alerts = json.load(fp)
+            alert_jsons.extend(alerts)
     historical_alerts = [Alert(a) for a in alert_jsons]
+
+    for a in historical_alerts:
+        await a_store.put(a.id, a)
 
     # Compute α/β strengths
     precomputed_links = compute_alpha_beta_links(historical_alerts, graph)
+    print(precomputed_links)
+
     gd = ProbabilityDetector(graph, mq, a_store, nf, precomputed_links)
 
-    for p, res, f in zip(patterns, results, fbs):
-        print(precomputed_links)
-        print("********************************")
-        for r in res:
-            nf.to_raise.add(r.id)
-        for al in p:
-            await a_store.put(al.id, al)
-            await gd.process_alert(al)
+    for a in pattren:
+        await a_store.put(a.id, a)
+        await gd.process_alert(a)
 
-        await asyncio.gather(
-            *itertools.chain(*[t.notify_tasks.values() for t in gd.batches])
-        )
-
-        for al in p:
-            await a_store.remove(al.id)
-        nf.to_raise.clear()
-        await gd.feedback_handler(f)
+    # for p, res, f in zip(patterns, results, fbs):
+    # print(precomputed_links)
+    # print("********************************")
+    # for r in res:
+    #     nf.to_raise.add(r.id)
+    # for al in p:
+    #     await a_store.put(al.id, al)
+    #     await gd.process_alert(al)
+    #
+    await asyncio.gather(
+        *itertools.chain(*[t.notify_tasks.values() for t in gd.batches])
+    )
+    #
+    # for al in p:
+    #     await a_store.remove(al.id)
+    # nf.to_raise.clear()
+    # await gd.feedback_handler(f)
 
 
 async def test():

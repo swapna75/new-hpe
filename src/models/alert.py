@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
-from src.models.node import GraphNode
+
+from .node import GraphNode
 
 
 class ALERT_STATE(Enum):
@@ -20,11 +21,11 @@ status = {"resolved": ALERT_STATE.RESOLVED, "firing": ALERT_STATE.FIRING}
 def change_to_date(t_str):
     # Accepts both with and without milliseconds
     try:
-        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%S.%f").replace(
             tzinfo=timezone.utc
         )
     except ValueError:
-        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%SZ").replace(
+        return datetime.strptime(t_str, "%Y-%m-%dT%H:%M:%S").replace(
             tzinfo=timezone.utc
         )
 
@@ -42,21 +43,29 @@ class Alert:
         self.is_root_cause = False
 
         self.parent_count = 0
+        self.parent_id = ""  # gets updated somewhere.
 
-        self.decription = alert_json["annotations"]["description"]
+        self.description = alert_json["annotations"]["description"]
         self.summary = alert_json["annotations"]["summary"]
 
         self.id = self.__get_id()
-        # self.id = f"{self.service}-{self.summary}"
+        # self.id = f"{self.service}-{self.description}"
 
     def __str__(self) -> str:
-        return f"Alert from service {self.service_name} started at {self.startsAt} with severity {self.severity}"
+        return f"Alert from service {self.service_name} with name `{self.description}` started at {self.startsAt} with severity {self.severity}"
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "parent_id": self.parent_id,
+            "service": self.service_name,
+            "summary": self.description,
+        }
 
     def __repr__(self) -> str:
-        return self.id
+        return self.description
 
-    def __get_id(self) -> int:
+    def __get_id(self) -> str:
         s = str(frozenset(self.alert["labels"].items()))
         h = hashlib.sha256(s.encode()).digest()
         return str(int.from_bytes(h, "big"))[:15]
-

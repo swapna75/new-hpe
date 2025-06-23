@@ -4,6 +4,6 @@ class Constants:
 
 import logging
 
-logging.basicConfig(level=logging.FATAL, format="%(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s - %(message)s")
 
 log = logging.getLogger("__main__")

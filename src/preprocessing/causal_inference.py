@@ -1,10 +1,13 @@
 from collections import defaultdict
 from datetime import timedelta
+import sys
 from typing import List, Dict, Tuple
+
+from src.models.alert import Alert
 
 
 DELTA_TIME = timedelta(minutes=2)
-BATCH_GAP_THRESHOLD = timedelta(minutes=10)
+BATCH_GAP_THRESHOLD = timedelta(minutes=15)
 INITIAL_ALPHA = 1
 INITIAL_BETA = 1
 
@@ -16,7 +19,9 @@ def is_temporally_valid(parent_alert, child_alert, delta=DELTA_TIME) -> bool:
     )
 
 
-def batch_alerts(alerts: List, gap_threshold=BATCH_GAP_THRESHOLD) -> List[List]:
+def batch_alerts(
+    alerts: List[Alert], gap_threshold=BATCH_GAP_THRESHOLD
+) -> List[List[Alert]]:
     """Splits a sorted list of alerts into time-separated batches."""
     alerts = sorted(alerts, key=lambda a: a.startsAt)
     batches = []
@@ -61,7 +66,8 @@ def process_batch(
                 key = (parent_alert.id, alert.id)
                 if is_temporally_valid(parent_alert, alert, delta):
                     links[key][0] += 1  # alpha
-                links[key][1] += 1  # beta
+                else:
+                    links[key][1] += 1  # beta
 
         # Same-service links
         for same_alert in service_to_alerts[alert.service]:
@@ -91,3 +97,8 @@ def compute_alpha_beta_links(
             total_links[key][0] += a - INITIAL_ALPHA  # skip initial count in each batch
             total_links[key][1] += b - INITIAL_BETA
     return total_links
+
+
+if __name__ == "__main__":
+    map_dir = sys.argv[1]
+    data_dir = sys.argv[2]

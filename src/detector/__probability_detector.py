@@ -11,7 +11,7 @@ from src.graph import BaseGraph
 from src.notifier import BaseNotifier
 from src.models import Alert
 
-DELTA_TIME = timedelta(seconds=100)
+DELTA_TIME = timedelta(minutes=3)
 CONFIDENCE_THRESHOLD = 0.2
 
 INITIAL_ALPHA = 1
@@ -47,6 +47,11 @@ class AlertBatch:
         self.groups: list[AlertGroup] = []
 
     def check_temporal(self, alert: Alert):
+        print("-" * 100)
+        print(alert.startsAt)
+        print(self.lower_bound)
+        print(self.upper_bound)
+        print("-" * 100)
         if self.lower_bound:
             if not (
                 self.lower_bound - DELTA_TIME
@@ -85,6 +90,8 @@ class AlertBatch:
                 linked = True
                 if (p_alert.id, alert.id) not in self.links:
                     self.links[(p_alert.id, alert.id)] = [INITIAL_ALPHA, INITIAL_BETA]
+        if linked:
+            log.debug("Found a parent for this alert.")
 
         for c in children:
             for c_alert in self.service_to_alert[c.id]:
@@ -98,7 +105,7 @@ class AlertBatch:
 
         log.debug("links found")
 
-        self.curr_alerts.add(alert)
+        self.curr_alerts.add(alert.id)
         self.service_to_alert[alert.service].add(alert)
 
         if not self.lower_bound:
@@ -118,10 +125,10 @@ class AlertBatch:
                 continue
 
             a, b = link
-            if a == alert.id and (await self.store.get_count(b)) != 0:
+            if a == alert.id and b in self.curr_alerts:
                 children.append(b)
 
-            if b == alert.id and (await self.store.get_count(a)) != 0:
+            if b == alert.id and a in self.curr_alerts:
                 parents.append(a)
 
         # if this has no parent then this may be a root
@@ -131,7 +138,7 @@ class AlertBatch:
         best_strenght = -float("inf")
         best_child = None
         for child in children:
-            decision, strength = self.get_strength(alert.id, child)
+            decision, strength = await self.get_strength(alert.id, child)
             log.debug(f"Child: {decision=}, {strength=} for ({alert.id}, {child})")
 
             if decision:
@@ -144,7 +151,7 @@ class AlertBatch:
         best_strenght = -float("inf")
         best_parent = None
         for parent in parents:
-            decision, strength = self.get_strength(parent, alert.id)
+            decision, strength = await self.get_strength(parent, alert.id)
             log.debug(f"Parent: {decision=}, {strength=} for ({parent}, {alert.id})")
             if decision:
                 have_poked_a_parent = True
@@ -159,7 +166,7 @@ class AlertBatch:
         # here we need to check weather the child have any other parent.
         # if it have more link strength. then skip to only parent
         if have_poked_a_child and have_poked_a_parent:
-            if self.check_for_other_parents(alert.id, best_child):
+            if await self.check_for_other_parents(alert.id, best_child):
                 have_poked_a_child = False
 
         if have_poked_a_child and have_poked_a_parent:
@@ -173,6 +180,10 @@ class AlertBatch:
             c_alert, _ = await self.store.get(best_child)
 
             alert.group = p_alert.group
+
+            alert.parent_id = p_alert.id
+            c_alert.parent_id = alert.id
+
             parent_grp: AlertGroup = p_alert.group
             child_grp: AlertGroup = c_alert.group
 
@@ -200,6 +211,8 @@ class AlertBatch:
             grp = c_alert.group
             # print(">>>>>>>>>>> ", id(grp))
             alert.group = grp
+            c_alert.parent_id = alert.id
+
             grp.add_root(alert)
             self.register_as_a_root(alert)
         elif have_poked_a_parent:  # assuming no child but a parent
@@ -209,7 +222,9 @@ class AlertBatch:
             p_alert, _ = await self.store.get(best_parent)
             grp: AlertGroup = p_alert.group
             # print(">>>>>>>>>>> ", id(grp))
+
             alert.group = grp
+            alert.parent_id = p_alert.id
             grp.add_other(alert)
         else:
             # assuming no child and no parent
@@ -223,13 +238,13 @@ class AlertBatch:
             self.register_as_a_root(alert)
             return
 
-    def check_for_other_parents(self, curr_id, child_id):
-        _, curr_strength = self.get_strength(curr_id, child_id)
+    async def check_for_other_parents(self, curr_id, child_id):
+        _, curr_strength = await self.get_strength(curr_id, child_id)
         for a, b in self.links.keys():
             if b != child_id:
                 continue
 
-            _, other_strenght = self.get_strength(a, b)
+            _, other_strenght = await self.get_strength(a, b)
             if curr_strength <= other_strenght:
                 return True
 
@@ -246,11 +261,11 @@ class AlertBatch:
         )  # change this to new task that registered as wait time and send the request.
         self.notify_tasks[alert.id] = new_tsk
 
-    def get_strength(self, parent_id: int, child_id: int) -> tuple[bool, float]:
+    async def get_strength(self, parent_id: int, child_id: int) -> tuple[bool, float]:
         alpha, beta_ = self.links.get(
             (parent_id, child_id), (INITIAL_ALPHA, INITIAL_BETA)
         )
-        total = alpha + beta_
+        total = (await self.store.get(child_id))[1]
         # print(alpha, beta_)
 
         strength = alpha / total
@@ -265,12 +280,13 @@ class AlertBatch:
             await asyncio.sleep(DELAY)
             log.info(f"Notifying root={root.id} for {len(group.group)} alerts")
             await self.notifier.notify(group)
+            print("Thing")
             # self.groups.remove(group)
             if len(self.groups) == 0:
                 self.deleter(self)
         except asyncio.CancelledError:
             log.debug(
-                f"Notify task cancelled for group with root {str(group.root.id)[:10]} (new alert arrived)."
+                f"Notify task cancelled for group with root {str(group.root.id)} (new alert arrived)."
             )
 
 
@@ -313,7 +329,7 @@ class ProbabilityDetector(BaseDetector):
             self.links,
             self.trigger_delete,
         )
-        new_batch.curr_alerts.add(alert)
+        new_batch.curr_alerts.add(alert.id)
         new_batch.service_to_alert[alert.service].add(alert)
         alert.batch = new_batch
         alert.group = AlertGroup(alert)
