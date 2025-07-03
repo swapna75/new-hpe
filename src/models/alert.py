@@ -48,8 +48,8 @@ class Alert:
         self.description = alert_json["annotations"]["description"]
         self.summary = alert_json["annotations"]["summary"]
 
-        self.id = self.__get_id()
-        # self.id = f"{self.service}-{self.description}"
+        # self.id = self.__get_id()
+        self.id = f"{self.service}.{self.alert['labels']['instance']}"
 
     def __str__(self) -> str:
         return f"Alert from service {self.service_name} with name `{self.description}` started at {self.startsAt} with severity {self.severity}"
@@ -63,7 +63,7 @@ class Alert:
         }
 
     def __repr__(self) -> str:
-        return self.description
+        return self.id
 
     def __get_id(self) -> str:
         s = str(frozenset(self.alert["labels"].items()))

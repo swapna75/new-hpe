@@ -47,11 +47,6 @@ class AlertBatch:
         self.groups: list[AlertGroup] = []
 
     def check_temporal(self, alert: Alert):
-        print("-" * 100)
-        print(alert.startsAt)
-        print(self.lower_bound)
-        print(self.upper_bound)
-        print("-" * 100)
         if self.lower_bound:
             if not (
                 self.lower_bound - DELTA_TIME
@@ -269,9 +264,8 @@ class AlertBatch:
         # print(alpha, beta_)
 
         strength = alpha / total
-        # print(alpha, beta_, strength)
 
-        should = strength >= 0.3
+        should = strength >= CONFIDENCE_THRESHOLD
         return should, strength
 
     async def _notify_after_delay(self, group: AlertGroup):
@@ -280,7 +274,6 @@ class AlertBatch:
             await asyncio.sleep(DELAY)
             log.info(f"Notifying root={root.id} for {len(group.group)} alerts")
             await self.notifier.notify(group)
-            print("Thing")
             # self.groups.remove(group)
             if len(self.groups) == 0:
                 self.deleter(self)

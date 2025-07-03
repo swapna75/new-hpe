@@ -28,15 +28,14 @@ async def preprocess(graph: BaseGraph, store: BaseAlertStore):
             alerts = json.load(fp)
             alert_jsons.extend(alerts)
     historical_alerts = [Alert(a) for a in alert_jsons]
-    for a in historical_alerts:
-        await store.put(a.id, a)
 
     # Compute α/β link strengths using valid historical alerts
-    precomputed_links = compute_alpha_beta_links(historical_alerts, graph)
+    precomputed_links = await compute_alpha_beta_links(historical_alerts, store, graph)
     print("Preprocessing summary:")
     print(f"Total historical alerts used: {len(historical_alerts)}")
     print(f"Total computed links: {len(precomputed_links)}")
 
+    print("Head of the computed links.")
     for i, ((src, dst), (alpha, beta)) in enumerate(precomputed_links.items()):
         print(f"Link {i + 1}: {src} → {dst} | α={alpha}, β={beta}")
         if i == 4:

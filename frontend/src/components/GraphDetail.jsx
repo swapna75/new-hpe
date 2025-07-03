@@ -1,13 +1,13 @@
-import React from 'react';
-import GraphViewer from './GraphViewer';
-import NodeDetails from './NodeDetails';
+import React from "react";
+import GraphViewer from "./GraphViewer";
+import NodeDetails from "./NodeDetails";
 
-const GraphDetail = ({ 
-    graphId, 
-    graph, 
-    onBack, 
-    onNodeClick, 
-    selectedNodeData 
+const GraphDetail = ({
+    graphId,
+    graph,
+    onBack,
+    onNodeClick,
+    selectedNodeData,
 }) => {
     return (
         <div className="graph-detail">
@@ -16,15 +16,15 @@ const GraphDetail = ({
                     ← Back to Graphs
                 </button>
                 <div className="graph-info">
-                    <h2>Graph: {graphId}</h2>
+                    <p>Graph: {graphId}</p>
                     <div className="graph-meta">
-                        <span>Nodes: {graph.nodes.length}</span>
-                        <span>Edges: {graph.edges.length}</span>
+                        <span>Alerts: {graph.nodes.length}</span>&nbsp;
+                        <span>Edges: {graph.edges.length}</span>&nbsp;
                         <span>Created: {new Date(graph.createdAt).toLocaleString()}</span>
                     </div>
                 </div>
             </div>
-            
+
             <div className="graph-detail-content">
                 <div className="graph-viewer-section">
                     <GraphViewer
@@ -33,11 +33,11 @@ const GraphDetail = ({
                         edges={graph.edges}
                         onNodeClick={onNodeClick}
                         selectedNodeData={selectedNodeData}
-                        isNewNode={graph.nodes.some(node => node.data.isNew)}
-                        isNewEdge={graph.edges.some(edge => edge.data.isNew)}
+                        isNewNode={graph.nodes.some((node) => node.data.isNew)}
+                        isNewEdge={graph.edges.some((edge) => edge.data.isNew)}
                     />
                 </div>
-                
+
                 <div className="node-details-section">
                     <NodeDetails nodeData={selectedNodeData} />
                 </div>
@@ -46,4 +46,5 @@ const GraphDetail = ({
     );
 };
 
-export default GraphDetail; 
+export default GraphDetail;
+

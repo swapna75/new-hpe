@@ -5,4 +5,4 @@ An application that detectes root cause of multiple alerts that are raised at on
 TODO:
 [*] - complete skeleton
 [*] - make prototype compatible with alets types given by alertmanager
-[] - test with the example application
+[*] - test with the example application -> example deployment

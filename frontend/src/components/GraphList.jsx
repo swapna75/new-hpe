@@ -86,7 +86,7 @@ const GraphList = ({ graphs, onGraphSelect, selectedGraphId }) => {
 
                                 <div className="graph-card-stats">
                                     <div className="stat-item">
-                                        <span className="stat-label">Nodes:</span>
+                                        <span className="stat-label">Alerts:</span>
                                         <span className="stat-value">{graph.nodes.length}</span>
                                     </div>
                                     <div className="stat-item">
@@ -121,4 +121,3 @@ const GraphList = ({ graphs, onGraphSelect, selectedGraphId }) => {
 };
 
 export default GraphList;
-

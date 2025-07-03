@@ -212,10 +212,10 @@ const GraphViewer = ({
     return (
         <div className="graph-viewer">
             <div className="graph-header">
-                <h3>Graph: {graphId}</h3>
+                <p>Graph: {graphId}</p>
                 <div className="graph-stats">
-                    <span>Nodes: {nodes.length}</span>
-                    <span>Edges: {edges.length}</span>
+                    <span>Nodes: {nodes.length}</span>&nbsp;
+                    <span>Edges: {edges.length}</span>&nbsp;
                 </div>
             </div>
             <CytoscapeComponent

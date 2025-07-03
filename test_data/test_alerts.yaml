@@ -1,0 +1,85 @@
+---
+id: 1
+service: user-service
+alerts:
+  - id: 1.1
+    name: "Auth failure spike"
+    condition: "auth failures > 5% over 5m"
+    severity: critical
+  - id: 1.2
+    name: "Session latency high"
+    condition: "session DB p95 latency > 100ms"
+    severity: warning
+
+---
+id: 2
+service: product-catalog-service
+alerts:
+  - id: 2.1
+    name: "Metadata sync delay"
+    condition: "sync delay > 1h"
+    severity: warning
+  - id: 2.2
+    name: "Read error surge"
+    condition: "read errors > 1% over 5m"
+    severity: critical
+---
+id: 3
+service: inventory-service
+alerts:
+  - id: 3.1
+    name: "Stock consistency warning"
+    condition: "inventory mismatch > 0.5% in daily job"
+    severity: warning
+  - id: 3.2
+    name: "Update failure increase"
+    condition: "update errors > 1% over 5m"
+    severity: critical
+---
+id: 4
+service: order-service
+alerts:
+  - id: 4.1
+    name: "Order backlog risk"
+    condition: "pending orders > 500"
+    severity: critical
+  - id: 4.2
+    name: "Validation error surge"
+    condition: "validation failures > 2% over 5m"
+    severity: warning
+---
+id: 5
+service: payment-service
+alerts:
+  - id: 5.1
+    name: "Gateway timeout spike"
+    condition: "timeouts > 3% over 5m"
+    severity: critical
+  - id: 5.2
+    name: "High retry rate"
+    condition: "payment retries > 10% over 5m"
+    severity: warning
+---
+id: 6
+service: shipping-service
+alerts:
+  - id: 6.1
+    name: "Shipping delay warning"
+    condition: "average shipping delay > 48h for >5% shipments"
+    severity: warning
+  - id: 6.2
+    name: "Carrier API failure surge"
+    condition: "carrier API errors > 2% over 5m"
+    severity: critical
+---
+id: 7
+service: recommendation-service
+alerts:
+  - id: 7.1
+    name: "Recommendation latency warning"
+    condition: "p95 latency > 200ms"
+    severity: warning
+  - id: 7.2
+    name: "Recommendation model errors"
+    condition: "inference errors > 1% over 5m"
+    severity: critical
