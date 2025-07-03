@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from pathlib import Path
 import datetime as dt
+import csv 
 
 # === CONFIG ===
 NUM_DAYS = 500
@@ -216,17 +217,44 @@ def main():
 
     # === Step 5: Save alerts by day
     for day, alerts in alerts_by_day.items():
-        filename = os.path.join(OUTPUT_DIR, f"alerts_day_{day + 1:04d}.json")
-        with open(filename, "w") as f:
-            json.dump(alerts, f, indent=2)
+        filename = os.path.join(OUTPUT_DIR, f"alerts_day_{day + 1:04d}.csv")
+        with open(filename, "w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            # Write header
+            writer.writerow(["job", "instance", "severity", "startsAt", "endsAt", "status", "description", "summary"])
+            for alert in alerts:
+                writer.writerow([
+                    alert["labels"]["job"],
+                    alert["labels"]["instance"],
+                    alert["labels"]["severity"],
+                    alert["startsAt"],
+                    alert["endsAt"],
+                    alert["status"],
+                    alert["annotations"]["description"],
+                    alert["annotations"]["summary"]
+                ])
+
 
     # === Step 6: Save Type 1 noise by day & pattern
     for day_key, patterns in type1_noise_by_day_pattern.items():
         day_dir = Path(TYPE1_NOISE_DIR) / day_key
         day_dir.mkdir(parents=True, exist_ok=True)
         for pattern_key, alerts in patterns.items():
-            with open(day_dir / f"{pattern_key}.json", "w") as f:
-                json.dump(alerts, f, indent=2)
+            with open(day_dir / f"{pattern_key}.csv", "w", newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["job", "instance", "severity", "startsAt", "endsAt", "status", "description", "summary"])
+                for alert in alerts:
+                    writer.writerow([
+                        alert["labels"]["job"],
+                        alert["labels"]["instance"],
+                        alert["labels"]["severity"],
+                        alert["startsAt"],
+                        alert["endsAt"],
+                        alert["status"],
+                        alert["annotations"]["description"],
+                        alert["annotations"]["summary"]
+                    ])
+
 
     # === Summary
     print(f"Generated {NUM_DAYS} days.")
