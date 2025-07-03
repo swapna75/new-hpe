@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import os
 
+
 from src.graph.__base import BaseGraph
 from src.storage.__base import BaseAlertStore
 
@@ -44,12 +45,11 @@ async def preprocess(graph: BaseGraph, store: BaseAlertStore):
     return precomputed_links
 
 
-async def main():
+async def main(config):
     notifier = WsNotifier()
     graph = ServiceGraph("test_data/test_service_map.yaml")
     mq = AsyncQueue()
     store = DictStore("test/alerts")
-
     precomputed_links = await preprocess(graph, store)
 
     # Initialize detector
@@ -58,8 +58,22 @@ async def main():
     # Set up listener and start services
     httpserver = HTTPListener(mq, notifier)
     httpserver.set_feedback_listner(detector.feedback_handler)
-    await asyncio.gather(detector.start(), httpserver.listen())
+    try:
+        await asyncio.gather(detector.start(), httpserver.listen())
+    except asyncio.CancelledError:
+        print()
+        await httpserver.close()
+        await notifier.free_wsockets()
+        raise
+
+
+def parse_config():
+    pass
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        cfg = parse_config()
+        asyncio.run(main(cfg))
+    except KeyboardInterrupt:
+        print("Exiting the application.")

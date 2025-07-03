@@ -48,6 +48,7 @@ class HTTPListener(BaseListener):
                 web.post("/alerts", self.receive_alert),
                 web.post("/feedback", self.receive_feedback),
                 web.get("/ws", self.web_socket_handler),
+                web.delete("/batch", self.batch_delete_handler),
             ]
         )
 
@@ -68,7 +69,6 @@ class HTTPListener(BaseListener):
         except Exception:
             return web.Response(status=400)
 
-        # self.work_queue.put_nowait([Alert(x) for x in alerts])
         self.work_queue.put_nowait(convert_to_alerts(alerts))
 
         return web.Response(status=200)
@@ -84,8 +84,14 @@ class HTTPListener(BaseListener):
     def set_feedback_listner(self, handler):
         self.fb_handler = handler
 
+    async def batch_delete_handler(self, request: web.Request):
+        gid = request.query.get("group_id")
+        if gid is None:
+            return
+        await self.notifier.delete_group(gid)
+
     async def web_socket_handler(self, request: web.Request):
-        logger.debug("A new ws request arrived.")
+        logger.info("A new ws request arrived.")
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         logger.debug("Upgraded to websocket")
@@ -94,12 +100,16 @@ class HTTPListener(BaseListener):
         await self.notifier.add_wsocket(ws)
         logger.debug("sent all batches.")
         async for msg in ws:
-            # if a in comming msg comes then exit
+            # if an incoming msg, then exit
             break
 
         await self.notifier.delete_websocket(ws)
 
         return ws
+
+    async def close(self):
+        log.info("Stopping http server.")
+        await self.site.stop()
 
 
 def convert_to_alerts(json_data):

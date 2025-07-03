@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import timedelta
 from hashlib import sha256
 import itertools
 import sys
@@ -9,22 +8,17 @@ import random
 
 from src.models import Alert
 from src.storage import BaseAlertStore
+from src.config import cfg
 
 
-INITIAL_ALPHA = 1
-INITIAL_BETA = 1
-DELTA_TIME = timedelta(minutes=2)
-BATCH_GAP_THRESHOLD = timedelta(minutes=15)
-
-
-def is_temporally_valid(parent_alert, child_alert, delta=DELTA_TIME) -> bool:
+def is_temporally_valid(parent_alert, child_alert, delta=cfg.time_delta) -> bool:
     return (
         parent_alert.startsAt <= child_alert.startsAt <= parent_alert.startsAt + delta
     )
 
 
 def batch_alerts(
-    alerts: List[Alert], gap_threshold=BATCH_GAP_THRESHOLD
+    alerts: List[Alert], gap_threshold=cfg.batch_gap_threshold
 ) -> List[List[Alert]]:
     alerts = sorted(alerts, key=lambda a: a.startsAt)
     batches = []
@@ -83,9 +77,9 @@ def normalize_batches(batches: List[List[Alert]]) -> List[List[Alert]]:
 
 
 def process_batch(
-    batch: List[Alert], graph, delta=DELTA_TIME
+    batch: List[Alert], graph, delta=cfg.time_delta
 ) -> Dict[Tuple[str, str], List[int]]:
-    links = defaultdict(lambda: [INITIAL_ALPHA, INITIAL_BETA])
+    links = defaultdict(lambda: [cfg.initial_alpha, cfg.initial_beta])
     service_to_alerts = defaultdict(list)
 
     for alert in batch:
@@ -140,7 +134,7 @@ async def compute_alpha_beta_links(
 ) -> Dict[Tuple[str, str], List[int]]:
     batches = batch_alerts(alerts)
     normalized_batches = normalize_batches(batches)
-    total_links = defaultdict(lambda: [INITIAL_ALPHA, INITIAL_BETA])
+    total_links = defaultdict(lambda: [cfg.initial_alpha, cfg.initial_beta])
 
     print("Total batches: ", len(batches))
     print("Normalised batches: ", len(normalized_batches))
@@ -152,8 +146,8 @@ async def compute_alpha_beta_links(
             await store.put(al.id, al)
 
         for key, (a, b) in batch_links.items():
-            total_links[key][0] += a - INITIAL_ALPHA
-            total_links[key][1] += b - INITIAL_BETA
+            total_links[key][0] += a - cfg.initial_alpha
+            total_links[key][1] += b - cfg.initial_beta
 
     return total_links
 

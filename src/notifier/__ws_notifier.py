@@ -12,7 +12,7 @@ class WsNotifier(BaseNotifier):
         super().__init__()
 
         self.wsockets: set[web.WebSocketResponse] = set()
-        self.groups = set()
+        self.groups = {}
 
     async def notify(self, alertg: AlertGroup):
         try:
@@ -20,7 +20,7 @@ class WsNotifier(BaseNotifier):
             logger.info(
                 f"Seding data about alert group to all the websockets. {str(alertg)}"
             )
-            self.groups.add(alertg)
+            self.groups[alertg.grp_id] = alertg
             for soc in self.wsockets:
                 await soc.send_str(str(alertg))
         except Exception as e:
@@ -37,3 +37,13 @@ class WsNotifier(BaseNotifier):
         self.wsockets.add(soc)
         for g in self.groups:
             await soc.send_str(str(g))
+
+    async def free_wsockets(self):
+        for ws in list(self.wsockets):
+            if ws.closed:
+                continue
+
+            await ws.close()
+
+    async def delete_group(self, gid):
+        del self.groups[gid]
