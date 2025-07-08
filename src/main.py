@@ -18,8 +18,6 @@ from src.detector import ProbabilityDetector
 from src.storage import DictStore
 from src.preprocessing.causal_inference import compute_alpha_beta_links
 from src.models.alert import Alert
-
-# ✅ Add this import for your new CSV preprocessing
 from src.preprocessing.csv_preprocessor import load_and_preprocess
 
 
@@ -30,7 +28,7 @@ async def preprocess(graph: BaseGraph, store: BaseAlertStore):
     data_path = Path(__file__).parent.parent / "test_data/data"
     alert_jsons = []
     for f in data_path.iterdir():
-        if f.suffix != ".json":  # skip non-json files
+        if f.suffix != ".json":  
             continue
         with open(f, "r") as fp:
             alerts = json.load(fp)
@@ -72,17 +70,9 @@ async def main(config):
     graph = ServiceGraph("test_data/test_service_map.yaml")
     mq = AsyncQueue()
     store = DictStore("test/alerts")
-
-    # Run CSV preprocessing example (optional)
     csv_preprocess_example()
-
-    # Run JSON-based historical preprocessing
     precomputed_links = await preprocess(graph, store)
-
-    # Initialize detector
     detector = ProbabilityDetector(graph, mq, store, notifier, precomputed_links)
-
-    # Set up listener and start services
     httpserver = HTTPListener(mq, notifier)
     httpserver.set_feedback_listner(detector.feedback_handler)
     try:
