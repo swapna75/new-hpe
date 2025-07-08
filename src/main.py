@@ -23,17 +23,17 @@ from src.preprocessing.csv_preprocessor import load_and_preprocess
 
 async def preprocess(graph: BaseGraph, store: BaseAlertStore):
     """
-    The original preprocessing: reads historical JSON alerts and computes α/β links.
+    Updated preprocessing: reads historical CSV alerts and computes α/β links.
     """
-    data_path = Path(__file__).parent.parent / "test_data/data"
-    alert_jsons = []
-    for f in data_path.iterdir():
-        if f.suffix != ".json":  
-            continue
-        with open(f, "r") as fp:
-            alerts = json.load(fp)
-            alert_jsons.extend(alerts)
-    historical_alerts = [Alert(a) for a in alert_jsons]
+    import pandas as pd
+
+    csv_path = Path(__file__).parent.parent / "test_data/data/all_alerts.csv"
+    if not csv_path.exists():
+        print(f"CSV file {csv_path} not found. Skipping preprocessing.")
+        return
+
+    df = pd.read_csv(csv_path)
+    historical_alerts = [Alert(row.to_dict()) for _, row in df.iterrows()]
 
     # Compute α/β link strengths using valid historical alerts
     precomputed_links = await compute_alpha_beta_links(historical_alerts, store, graph)
@@ -48,6 +48,7 @@ async def preprocess(graph: BaseGraph, store: BaseAlertStore):
             break
 
     return precomputed_links
+
 
 
 def csv_preprocess_example():
